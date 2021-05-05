@@ -6,6 +6,7 @@ import lombok.extern.slf4j.Slf4j;
 import okhttp3.*;
 
 import java.io.IOException;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -16,6 +17,7 @@ import java.util.Map;
 public class HttpClient {
 
     private static final MediaType APPLICATION_JSON = MediaType.parse("application/json");
+    private static final MediaType TEXT_PLAIN = MediaType.parse("text/plain");
 
     public final ObjectMapper mapper;
     public final OkHttpClient client;
@@ -35,6 +37,22 @@ public class HttpClient {
                     .url(httpUrl)
                     .post(RequestBody.create(APPLICATION_JSON, mapper.writeValueAsBytes(payload)));
         }
+        if (headers != null) {
+            headers.forEach(postBuilder::addHeader);
+        }
+        final Request request = postBuilder.build();
+        return client.newCall(request).execute();
+    }
+
+    public Response postMultipartData(final String url,
+                                      MultipartBody multipartBody,
+                                      final Map<String, String> headers) throws IOException {
+        final HttpUrl httpUrl = HttpUrl.get(url);
+        Request.Builder postBuilder;
+        postBuilder = new Request.Builder()
+                .url(httpUrl)
+                .post(multipartBody);
+
         if (headers != null) {
             headers.forEach(postBuilder::addHeader);
         }

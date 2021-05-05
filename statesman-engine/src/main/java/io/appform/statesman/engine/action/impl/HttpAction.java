@@ -42,7 +42,7 @@ public class HttpAction extends BaseAction<HttpActionTemplate> {
     @Inject
     public HttpAction(
             HandleBarsService handleBarsService,
-            Provider<HttpClient> client,
+            @Named("commonHttpClient") Provider<HttpClient> client,
             @Named("eventPublisher") final EventPublisher publisher,
             ObjectMapper mapper) {
         super(publisher, mapper);

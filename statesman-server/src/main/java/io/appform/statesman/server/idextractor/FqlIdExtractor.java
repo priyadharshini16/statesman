@@ -17,6 +17,7 @@ import okhttp3.Response;
 import org.eclipse.jetty.http.HttpStatus;
 
 import javax.inject.Inject;
+import javax.inject.Named;
 import javax.inject.Provider;
 import javax.inject.Singleton;
 import java.util.Optional;
@@ -37,7 +38,7 @@ public class FqlIdExtractor implements IdExtractor {
     public FqlIdExtractor(
             Provider<HandleBarsService> handleBarsProvider,
             FoxtrotClientConfig foxtrotClientConfig,
-            Provider<HttpClient> httpClientProvider,
+            @Named("commonHttpClient") Provider<HttpClient> httpClientProvider,
             ObjectMapper mapper) {
         this.handleBarsProvider = handleBarsProvider;
         this.foxtrotClientConfig = foxtrotClientConfig;

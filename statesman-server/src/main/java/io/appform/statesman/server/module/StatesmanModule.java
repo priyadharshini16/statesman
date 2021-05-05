@@ -1,5 +1,6 @@
 package io.appform.statesman.server.module;
 
+import com.codahale.metrics.MetricRegistry;
 import com.google.inject.AbstractModule;
 import com.google.inject.Provides;
 import com.google.inject.Singleton;
@@ -38,8 +39,10 @@ import io.appform.statesman.server.idextractor.CompoundIdExtractor;
 import io.appform.statesman.server.idextractor.IdExtractor;
 import io.appform.statesman.server.provider.ProviderSelectorImpl;
 import io.dropwizard.setup.Environment;
+import okhttp3.OkHttpClient;
 
 import java.io.IOException;
+import java.security.GeneralSecurityException;
 
 public class StatesmanModule extends AbstractModule {
 
@@ -101,6 +104,7 @@ public class StatesmanModule extends AbstractModule {
 
     @Provides
     @Singleton
+    @Named("commonHttpClient")
     public HttpClient httpClient(Environment environment, AppConfig appConfig) {
         return new HttpClient(environment.getObjectMapper(),
                               HttpUtil.defaultClient("common-http",
@@ -108,9 +112,19 @@ public class StatesmanModule extends AbstractModule {
                                                      appConfig.getHttpActionDefaultConfig()));
     }
 
+    @Singleton
+    @Provides
+    @Named("freshDeskHttpClient")
+    public HttpClient freshDeskServiceClient(Environment environment, AppConfig appConfig) {
+        return new HttpClient(environment.getObjectMapper(),
+                HttpUtil.defaultClient("fresh-desk",
+                        environment.metrics(), appConfig.getHttpActionDefaultConfig()));
+    }
+
     @Provides
     @Singleton
     public FoxtrotClientConfig foxtrotClientConfig(AppConfig appConfig) {
         return appConfig.getFoxtrot();
     }
+
 }
