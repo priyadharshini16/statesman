@@ -3,8 +3,11 @@ package io.appform.statesman.engine.action.impl;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.NullNode;
+import com.github.jknack.handlebars.JsonNodeValueResolver;
+import com.github.jknack.handlebars.context.MapValueResolver;
 import com.google.common.base.Splitter;
 import com.google.common.base.Strings;
+import com.google.common.collect.Maps;
 import io.appform.statesman.engine.action.BaseAction;
 import io.appform.statesman.engine.handlebars.HandleBarsService;
 import io.appform.statesman.model.ActionImplementation;
@@ -23,6 +26,7 @@ import javax.inject.Inject;
 import javax.inject.Named;
 import javax.inject.Provider;
 import javax.inject.Singleton;
+import java.io.File;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -59,7 +63,7 @@ public class HttpAction extends BaseAction<HttpActionTemplate> {
     public JsonNode execute(HttpActionTemplate actionTemplate, Workflow workflow) {
 
         log.debug("Http Action triggered with Template: {} and Workflow: {}",
-            actionTemplate, workflow);
+                actionTemplate, workflow);
 
         String responseTranslator = actionTemplate.getResponseTranslator();
         HttpActionData httpActionData = transformPayload(workflow, actionTemplate);
@@ -85,9 +89,9 @@ public class HttpAction extends BaseAction<HttpActionTemplate> {
             }
             log.debug("HTTP Response: {}", responseBodyStr);
             List<String> contentType = Arrays.stream(
-                                                httpResponse.header("Content-Type",APPLICATION_JSON)
-                                                .split(";"))
-                                                .collect(Collectors.toList());
+                    httpResponse.header("Content-Type",APPLICATION_JSON)
+                            .split(";"))
+                    .collect(Collectors.toList());
             if (contentType.stream()
                     .anyMatch(value -> value.equalsIgnoreCase(APPLICATION_JSON))) {
                 return toJsonNode(responseBodyStr);
@@ -112,7 +116,30 @@ public class HttpAction extends BaseAction<HttpActionTemplate> {
                 Response response = client.get().post(url, payload, headers);
                 if (!response.isSuccessful()) {
                     log.error("unable to do post action, actionData: {} Response: {}",
-                              actionData, HttpUtil.body(response));
+                            actionData, HttpUtil.body(response));
+                    throw new StatesmanError();
+                }
+                return response;
+            }
+
+            @Override
+            public Response visitMultiPartPost() throws Exception {
+                log.info("HTTP_ACTION MULTIPART POST Call url:{}", url);
+                val files = actionData.getFileData();
+//                Map<String,  File> fileData = Maps.newHashMap();
+//                files.forEach((k,path) -> {
+//                    val file  = new File(path);
+//                    if(!file.exists()) {
+//                        log.error("File does not exist with file path, {}", path);
+//                        throw new StatesmanError();
+//                    }
+//                    fileData.put(k, file);
+//                });
+                val formData = actionData.getFormData();
+                Response response = client.get().postMultipartData(url, formData, null, headers);
+                if (!response.isSuccessful()) {
+                    log.error("unable to do post action, actionData: {} Response: {}",
+                            actionData, HttpUtil.body(response));
                     throw new StatesmanError();
                 }
                 return response;
@@ -147,14 +174,16 @@ public class HttpAction extends BaseAction<HttpActionTemplate> {
         return HttpActionData.builder()
                 .method(HttpMethod.valueOf(actionTemplate.getMethod()))
                 .url(handleBarsService.transform(actionTemplate.getUrl(), jsonNode))
-                .headers(getheaders(jsonNode, actionTemplate.getHeaders()))
+                .headers(convertKeyValuePair(jsonNode, actionTemplate.getHeaders()))
                 .payload(handleBarsService.transform(actionTemplate.getPayload(), jsonNode))
+//                .fileData(handleBarsService.transform(actionTemplate.getAttachments(),jsonNode))
+                .formData(convertKeyValuePair(jsonNode, actionTemplate.getFormData()))
                 .build();
     }
 
     //assuming the header string in below format
     //headerStr = "key1:value1,key2:value2"
-    private Map<String, String> getheaders(JsonNode workflow, String headers) {
+    private Map<String, String> convertKeyValuePair(JsonNode workflow, String headers) {
         if (Strings.isNullOrEmpty(headers)) {
             return Collections.emptyMap();
         }
@@ -162,7 +191,6 @@ public class HttpAction extends BaseAction<HttpActionTemplate> {
                 .withKeyValueSeparator(":")
                 .split(handleBarsService.transform(headers, workflow));
     }
-
 
     @Data
     @Builder
@@ -173,6 +201,8 @@ public class HttpAction extends BaseAction<HttpActionTemplate> {
         private HttpMethod method;
         private String url;
         private String payload;
+        private Map<String, String> formData;
+        private List<String> fileData;
         private Map<String, String> headers;
 
     }
@@ -184,6 +214,13 @@ public class HttpAction extends BaseAction<HttpActionTemplate> {
             @Override
             public <T> T visit(final MethodTypeVisitor<T> visitor) throws Exception {
                 return visitor.visitPost();
+            }
+        },
+
+        MULTI_PART_POST {
+            @Override
+            public <T> T visit(final MethodTypeVisitor<T> visitor) throws Exception {
+                return visitor.visitMultiPartPost();
             }
         },
 
@@ -203,6 +240,8 @@ public class HttpAction extends BaseAction<HttpActionTemplate> {
          */
         public interface MethodTypeVisitor<T> {
             T visitPost() throws Exception;
+
+            T visitMultiPartPost() throws Exception;
 
             T visitGet() throws Exception;
         }
