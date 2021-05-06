@@ -7,6 +7,8 @@ import com.github.jknack.handlebars.JsonNodeValueResolver;
 import com.github.jknack.handlebars.context.MapValueResolver;
 import com.google.common.base.Splitter;
 import com.google.common.base.Strings;
+import com.google.common.collect.ForwardingMap;
+import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import io.appform.statesman.engine.action.BaseAction;
 import io.appform.statesman.engine.handlebars.HandleBarsService;
@@ -14,12 +16,16 @@ import io.appform.statesman.model.ActionImplementation;
 import io.appform.statesman.model.Workflow;
 import io.appform.statesman.model.action.ActionType;
 import io.appform.statesman.model.action.template.HttpActionTemplate;
+import io.appform.statesman.model.action.template.httpaction.FormData;
 import io.appform.statesman.model.exception.StatesmanError;
 import io.appform.statesman.publisher.EventPublisher;
 import io.appform.statesman.publisher.http.HttpClient;
 import io.appform.statesman.publisher.http.HttpUtil;
 import lombok.*;
 import lombok.extern.slf4j.Slf4j;
+import okhttp3.MediaType;
+import okhttp3.MultipartBody;
+import okhttp3.RequestBody;
 import okhttp3.Response;
 
 import javax.inject.Inject;
@@ -27,6 +33,8 @@ import javax.inject.Named;
 import javax.inject.Provider;
 import javax.inject.Singleton;
 import java.io.File;
+import java.io.IOException;
+import java.nio.file.Files;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -125,18 +133,8 @@ public class HttpAction extends BaseAction<HttpActionTemplate> {
             @Override
             public Response visitMultiPartPost() throws Exception {
                 log.info("HTTP_ACTION MULTIPART POST Call url:{}", url);
-                val files = actionData.getFileData();
-//                Map<String,  File> fileData = Maps.newHashMap();
-//                files.forEach((k,path) -> {
-//                    val file  = new File(path);
-//                    if(!file.exists()) {
-//                        log.error("File does not exist with file path, {}", path);
-//                        throw new StatesmanError();
-//                    }
-//                    fileData.put(k, file);
-//                });
-                val formData = actionData.getFormData();
-                Response response = client.get().postMultipartData(url, formData, null, headers);
+                headers.put("content-type", "multipart/form-data");
+                Response response = client.get().postMultipartData(url, actionData.getFormData(), headers);
                 if (!response.isSuccessful()) {
                     log.error("unable to do post action, actionData: {} Response: {}",
                             actionData, HttpUtil.body(response));
@@ -176,9 +174,19 @@ public class HttpAction extends BaseAction<HttpActionTemplate> {
                 .url(handleBarsService.transform(actionTemplate.getUrl(), jsonNode))
                 .headers(convertKeyValuePair(jsonNode, actionTemplate.getHeaders()))
                 .payload(handleBarsService.transform(actionTemplate.getPayload(), jsonNode))
-//                .fileData(handleBarsService.transform(actionTemplate.getAttachments(),jsonNode))
-                .formData(convertKeyValuePair(jsonNode, actionTemplate.getFormData()))
+                .formData(transformFormPayload(actionTemplate.getFormData(),jsonNode))
                 .build();
+    }
+
+    private List<FormData> transformFormPayload(List<FormData> formData, JsonNode jsonNode) {
+        if(formData == null || formData.isEmpty()) {
+            return Lists.newArrayList();
+        }
+        formData.forEach(data -> {
+            String transformedValue = handleBarsService.transform(data.getValue(), jsonNode);
+            data.setValue(transformedValue);
+        });
+        return formData;
     }
 
     //assuming the header string in below format
@@ -201,8 +209,7 @@ public class HttpAction extends BaseAction<HttpActionTemplate> {
         private HttpMethod method;
         private String url;
         private String payload;
-        private Map<String, String> formData;
-        private List<String> fileData;
+        private List<FormData> formData;
         private Map<String, String> headers;
 
     }

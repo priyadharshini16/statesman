@@ -2,11 +2,13 @@ package io.appform.statesman.model.action.template;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import io.appform.statesman.model.action.ActionType;
+import io.appform.statesman.model.action.template.httpaction.FormData;
 import lombok.Builder;
 import lombok.Data;
 import org.hibernate.validator.constraints.NotEmpty;
 
 import javax.validation.constraints.NotNull;
+import java.util.List;
 import java.util.Map;
 
 @Data
@@ -26,9 +28,7 @@ public class HttpActionTemplate extends ActionTemplate {
 
     private String responseTranslator;
 
-    private String attachments;
-
-    private String formData;
+    private List<FormData> formData;
 
     private boolean noop;
 
@@ -49,8 +49,7 @@ public class HttpActionTemplate extends ActionTemplate {
                               String responseTranslator,
                               boolean noop,
                               JsonNode noopResponse,
-                              String attachments,
-                              String formData) {
+                              List<FormData> formData) {
         super(ActionType.HTTP, templateId, name, active);
         this.method = method;
         this.url = url;
@@ -59,7 +58,6 @@ public class HttpActionTemplate extends ActionTemplate {
         this.responseTranslator = responseTranslator;
         this.noop = noop;
         this.noopResponse = noopResponse;
-        this.attachments = attachments;
         this.formData = formData;
     }
 
