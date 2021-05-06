@@ -419,23 +419,6 @@ public class HandleBarsServiceTest {
 
     @Test
     @SneakyThrows
-    public void test() {
-        final String template = "{\"language\" : {{{ translate_arr op_hello_world='HW' op_hello_mars='HM' pointer='/ticket.cf_language'}}} }";
-        final ObjectMapper objectMapper = Jackson.newObjectMapper();
-        final JsonNode arr = objectMapper.readTree(
-                handleBarsService.transform(
-                        JsonNodeValueResolver.INSTANCE,
-                        template,
-                        objectMapper.createObjectNode()
-                                .put("ticket.cf_language", "Hello World")))
-                .get("language");
-        Assert.assertTrue(arr.isArray());
-        Assert.assertEquals(1, arr.size());
-        Assert.assertEquals("HW", arr.get(0).asText());
-    }
-
-    @Test
-    @SneakyThrows
     public void phoneTest() {
         final String template = "{{phone value}}";
         Assert.assertEquals("1234567890", handleBarsService.transform(

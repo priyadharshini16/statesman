@@ -14,7 +14,6 @@ import okhttp3.Request;
 import okhttp3.RequestBody;
 import okhttp3.Response;
 
-import javax.activation.MimetypesFileTypeMap;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -39,9 +38,9 @@ public class HttpClient {
         final HttpUrl httpUrl = HttpUrl.get(url);
         Request.Builder postBuilder;
         if(payload instanceof String) {
-            postBuilder =  new Request.Builder()
-                    .url(httpUrl)
-                    .post(RequestBody.create(APPLICATION_JSON, (String)payload));
+             postBuilder =  new Request.Builder()
+                     .url(httpUrl)
+                     .post(RequestBody.create(APPLICATION_JSON, (String)payload));
         }
         else {
             postBuilder = new Request.Builder()
@@ -49,11 +48,7 @@ public class HttpClient {
                     .post(RequestBody.create(APPLICATION_JSON, mapper.writeValueAsBytes(payload)));
         }
         if (headers != null) {
-            for (Map.Entry<String, String> entry : headers.entrySet()) {
-                String key = entry.getKey();
-                String value = entry.getValue();
-                postBuilder.addHeader(key, value);
-            }
+            headers.forEach(postBuilder::addHeader);
         }
         final Request request = postBuilder.build();
         return client.newCall(request).execute();
@@ -85,16 +80,6 @@ public class HttpClient {
         return client.newCall(request).execute();
     }
 
-    private RequestBody getFileRequest(String value) {
-        File file = new File(value);
-        try {
-            return RequestBody.create(MediaType.parse("image/png"),
-                    Files.readAllBytes(file.toPath()));
-        } catch (IOException e) {
-            throw new StatesmanError();
-        }
-    }
-
     public Response get(final String url,
                         final Map<String, String> headers) throws IOException {
         final HttpUrl httpUrl = HttpUrl.get(url);
@@ -107,4 +92,15 @@ public class HttpClient {
         final Request request = getBuilder.build();
         return client.newCall(request).execute();
     }
+
+    private RequestBody getFileRequest(String value) {
+        File file = new File(value);
+        try {
+            return RequestBody.create(MediaType.parse("image/png"),
+                    Files.readAllBytes(file.toPath()));
+        } catch (IOException e) {
+            throw new StatesmanError();
+        }
+    }
+
 }
